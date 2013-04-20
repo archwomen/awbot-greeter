@@ -1,13 +1,21 @@
-There is no configuring or building the code as awbot is a single bash script.
+There is no configuring or building the code as awbot-logr is a single bash script.
 
-To install awbot do,
+To install awbot-logr do,
 $ make [options] install
 
 There are three options,
-  PREFIX    - path to where awbot is installed
+  PREFIX    - path to where awbot-logr is installed
               default is /usr/local
+  BINDIR    - directory under PREFIX to install the program
+              default is bin
   MANPREFIX - path to install the man page to
-              default is $(PREFIX)/share/man
+              default is $(PREFIX)
+  MANDIR    - directory under MANPREFIX to install the man page
+              default is share/man/man1
   DESTDIR   - where to put everything
               for use in packaging script
-              for example, DESTDIR=${HOME}/build/awbot
+              for example, DiESTDIR=${HOME}/build/awbot-logr
+
+pod2man is required for building the man page. It is part of most perl packages.
+
+OpenSSL and socat are needed for network connections.

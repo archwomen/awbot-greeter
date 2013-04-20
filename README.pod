@@ -1,30 +1,28 @@
 =head1 NAME
 
-awbot - Arch Linux Women IRC bot
+awbot-logr - Arch Linux Women IRC logging bot
 
 =head1 SYNOPSIS
 
-awbot [I<config_options>] git push E<lt>I<old_commit>E<gt> E<lt>I<new_commit>E<gt> E<lt>I<branch_name>E<gt>E<10> E<8>E<8>
-awbot [I<config_options>] git branch E<lt>I<new_branch_name>E<gt>
+awlogr [I<config_options>]
 
 =head1 DESCRIPTION
 
-awbot is a simple IRC robot which posts notifications of git events to an IRC channel. It is intended to be called from within git hooks or from scripts. OpenSSL is required to connect to an IRC server.
+awbot-logr is a simple IRC robot which logs activity in an IRC channel to systemd-journald. It is a fork of awbot.
 
-An example invocation from a I<post-receive> hook on the Arch Women server:
+Only one channel can be logged at a time. Messages are printed to stdout which are captured by systemd and automatically logged in journald. Only PRIVMSG, NOTICE, PART, JOIN, KICK, MODE, and QUIT messages are logged.
 
- 	read old new branch
- 	awbot git push "$old" "$new" "$branch"
-
-The configuration file is I</etc/awbot.conf>. Configuration can be overridden on the command line by listing I<config_options>.
+OpenSSL and socat are required to connect to an IRC server.
 
 =head1 CONFIGURATION
+
+The configuration file is I</etc/awbot.conf>. Configuration can be overridden on the command line by listing options.
 
 =over 4
 
 =item server=
 
-The DNS address of the IRC server to connect to. Default value is given for freenode.
+The address of the IRC server to connect to.
 
 =item port=
 
@@ -70,4 +68,4 @@ You should have received a copy of the GNU Affero General Public License along w
 
 http://archwomen.org
 
-https://github.com/archwomen/awbot
+https://github.com/archwomen/awbot-logr

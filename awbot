@@ -2,7 +2,7 @@
 
 # © 2012 fsckd <fsckdaemon@gmail.com>
 
-## Load config ##
+## Load config file ##
 
 config=/etc/awbot.conf
 
@@ -17,31 +17,15 @@ usage_error() { echo "error: incorrect usage, please see manual" >&2 ; exit 1 ; 
 # loop over parameters
 while (( "$#" ))
 do
-  case "$1" in
-         git) # request to post notices of git activity to the channel
-              [[ -z "$2" ]] && usage_error
-              mode="$2" # push or branch
-              if [[ push == "$mode" ]]
-              then
-                old="$3"    # old commit
-                new="$4"    # newest commit
-                branch="$5" # branch pushed
-              else
-                branch="$3" # branch changed to
-              fi
-              break
-              ;;
-           *) # may be a config option!
-              option="${1%%=*}"
-              value="${1#=*}"
-              if grep -q @"$option"@ <<<"@server@port@nick@pass@ircname@ircuser@channel@"
-              then
-                [[ -z "$value" ]] && [[ "$option" != pass ]] && usage_error
-                eval "$1" # set value
-              else
-                usage_error
-              fi
-  esac
+  # parse config options
+  IFS='=' read option value <<<"$1"
+  if grep -q @"$option"@ <<<"@server@port@nick@pass@ircname@ircuser@channel@"
+  then
+    [[ -z "$value" ]] && [[ "$option" != pass ]] && usage_error
+    eval "$1" # set value
+  else
+    usage_error
+  fi
   shift
 done
 
@@ -57,101 +41,6 @@ done
 { echo error: configuration is incomplete >&2 ; exit 1 ; }
 
 
-## IRC colors ##
-
-# source: http://cpansearch.perl.org/src/HINRIK/IRC-Utils-0.12/lib/IRC/Utils.pm
-
-irc_reset_color="`echo -e '\x0f'`" # reset colors
-
-irc_color_char="`echo -e '\x03'`" # color character
-
-irc_white="${irc_color_char}00"
-irc_black="${irc_color_char}01"
-irc_blue="${irc_color_char}02"
-irc_green="${irc_color_char}03"
-irc_red="${irc_color_char}04"
-irc_brown="${irc_color_char}05"
-irc_purple="${irc_color_char}06"
-irc_orange="${irc_color_char}07"
-irc_yellow="${irc_color_char}08"
-irc_light_green="${irc_color_char}09"
-irc_teal="${irc_color_char}10"
-irc_light_cyan="${irc_color_char}11"
-irc_light_blue="${irc_color_char}12"
-irc_pink="${irc_color_char}13"
-irc_grey="${irc_color_char}14"
-irc_light_grey="${irc_color_char}15"
-
-# wrap a string in a color
-# wrapcolor ${irc_red} foo -> ${irc_reset_color}${irc_red}foo${irc_reset_color}
-wrapcolor() { echo -n "$irc_reset_color$1$2$irc_reset_color" ; }
-
-## Ceate Message ##
-
-# Get information about git environment 
-# and generate the message for that.
-#
-# If mode=branch, tell channel
-#  LIVE user changed branch from old_branch to new_branch
-#
-# If mode=push, tell channel
-#  [repo] LIVE user pushed n commits to branch
-# or
-#  [repo] user has pushed n commits to branch
-# LIVE means branch is checked out and 
-# changes to it affect the system
-
-# check if gitolite (GL_) is used
-if [[ -z "$GL_REPO" ]]
-then
-  repo="$(basename "`pwd`")"
-else
-  repo="$GL_REPO"
-fi
-repo="${repo%.git}"
-repomsg="`wrapcolor "$irc_light_cyan" "$repo"`"
-
-curbranch="`cut -f 2 -d ' ' < HEAD`" # currently checkedout branch
-
-# trim branch names, excise "refs/head/" or just "refs/"
-trimbranch() { [[ "$1" =~ ^refs/heads/ ]] && echo "${1#refs/heads/}" || echo "${1#refs/}" ; }
-curbranchtrim="`trimbranch "$curbranch"`"
-branchtrim="`trimbranch "$branch"`"
-
-git_branch_color="$irc_yellow"
-
-# check if gitolite is used
-if [[ -z "$GL_USER" ]]
-then
-  user="`id -nu`"
-else
-  user="$GL_USER"
-fi
-
-case "$mode" in
-  branch)
-          message="$repomsg|`wrapcolor "$git_branch_color" "$curbranchtrim"`->$irc_green$branch `wrapcolor "$irc_red" LIVE` branch checkout by $user"
-          ;;
-    push)
-          [[ "$branch" == "$curbranch" ]] && LIVE=" `wrapcolor "$irc_red" LIVE`" || LIVE=''
-          message="$repomsg|`wrapcolor "$git_branch_color" "$branchtrim"`$LIVE $user pushed"
-          if [[ 0 == $(echo "$old" | sed 's,0\+,0,') ]]
-          then # new branch
-            message="$message a new branch"
-          else
-            numcommits="`git rev-list $old..$new | wc -l`" # number of commits pushed
-            [[ $numcommits == 1 ]] \
-            && message="$message a commit: $irc_purple`git log --format=%s -1 "$branch"`" \
-            || message="$message $irc_green$numcommits commits"
-          fi
-          ;;
-       *)
-          message="$repomsg post-receive hook calling awbot incorrectly"
-          ;;
-esac
-
-#message="`echo -e 'hello from \x036☃'`" # DEBUG
-
 ## IRC Bot ##
 
 # References:
@@ -161,6 +50,12 @@ esac
 # there are *a lot* of assumptions made
 
 cacert=/etc/ssl/certs/ca-certificates.crt # cert file
+capath=/etc/ssl/certs # path to ca files
+
+logr() # the loggings function
+{
+  echo "$@"
+}
 
 ircwrite() # write each arg as a line to irc
 {
@@ -268,9 +163,10 @@ ircmsgbreak() # facilitate message decomposition
   read $3 <<<"$mtail"
 }
 
-coproc irc { openssl s_client -connect "$server:$port" -CAfile "$cacert" -verify true -quiet; } 2>/dev/null
+coproc irc { socat - "OPENSSL:$server:$port",capath="$capath"; } 2>/dev/null
 
 initstage=true   # start in initial stage
+logging=false    # logging starts once in the channel
 nicknum=0        # number to append to nick if nick is in use
 nickbase="$nick" # base to derive alternative nicks from 
 
@@ -304,10 +200,11 @@ do
   elif [[ $mcmd == 366 ]]
   then
     # assuming that if end of nick list command received,
-    # it is safe to post to the channel
-    # quickly post message, leave and quit
-    ircwrite "notice $channel :$message" "part $channel" "quit"
-    break # done!
+    # it is safe to log the channel
+    # enable logging mode
+    logging=true
+    #ircwrite "notice $channel :$message" "part $channel" "quit"
+    #break # done!
   elif [[ $mcmd == PING ]]
   then
     # must respond to PING
@@ -321,6 +218,33 @@ do
   then
     # CTCP VERSION request
     ircwrite "notice $mname :$(enclose01 add "VERSION Arch Linux Women IRC bot")"
+  elif $logging && [[ "${mparam[0]}" == "$channel" ]]
+  then
+    case "${mcmd^^}" in
+      # log messages
+      PRIVMSG) # if being addressed by someone, respond
+               unset cnick cmsg creply
+               read cnick cmsg <<<"${mparam[1]}"
+               [[ "$cnick" =~ ^${nick}.?$ ]] &&
+               case "$cmsg" in
+                    help) creply="The commands are help, about, site, license, and source." ;;
+                 license) creply="AGPL https://www.gnu.org/licenses/agpl see also source" ;;
+                  source) creply="https://github.com/archwomen/awbot-logr" ;;
+                   about) creply="I assist the ops by logging this channel. The logs are deleted periodically and are not publicly viewable." ;;
+                    site) creply="http://redmine.archwomen.org/projects/awbot" ;;
+                    ping) creply="pony" ;;
+               esac
+               [[ -n "$creply" ]] && ircwrite "privmsg $channel :$mname: $creply" # not logging this
+               ;&
+       NOTICE) ;&
+         PART) logr "${mcmd^^} $mprefix ${mparam[1]}" ;;
+         JOIN) logr "${mcmd^^} $mprefix" ;;
+         KICK) logr "${mcmd^^} $mprefix ${mparam[1]} ${mparam[2]}" ;;
+         MODE) logr "${mcmd^^} $mprefix ${mparam[@]:1:$(( ${#mparam[@]} - 1 ))}" ;;
+    esac
+  elif $logging && [[ "${mcmd^^}" == QUIT ]]
+  then
+    logr "${mcmd^^} $mprefix ${mparam[0]}"
   fi
   # no else because other messages are ignored atm
 done <&${irc[0]}
