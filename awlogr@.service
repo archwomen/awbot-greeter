@@ -1,10 +1,10 @@
 [Unit]
-Description=Arch Women IRC bot to log %I
+Description=Arch Women IRC bot to log #%i
 Documentation=man:awbot-logr(1)
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/awlogr channel=%I
+ExecStart=/usr/bin/awlogr channel=#%i
 
 [Install]
 WantedBy=multi-user.target
