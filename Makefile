@@ -10,6 +10,7 @@ awbot-logr.1: README.pod
 install: awbot awbot-logr.1 awlogr@.service
 	install -D -m755 awbot $(DESTDIR)$(PREFIX)/$(BINDIR)/awlogr
 	install -D -m644 awbot-logr.1 $(DESTDIR)$(MANPREFIX)/$(MANDIR)/awbot-logr.1
+	ln -s awbot-logr.1 $(DESTDIR)$(MANPREFIX)/$(MANDIR)/awlogr.1
 	install -D -m644 awlogr@.service $(DESTDIR)$(PREFIX)/lib/systemd/system/awlogr@.service
 
 uninstall:
