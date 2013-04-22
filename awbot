@@ -218,33 +218,37 @@ do
   then
     # CTCP VERSION request
     ircwrite "notice $mname :$(enclose01 add "VERSION Arch Linux Women IRC bot")"
-  elif $logging && [[ "${mparam[0]}" == "$channel" ]]
+  elif $logging
   then
-    case "${mcmd^^}" in
-      # log messages
-      PRIVMSG) # if being addressed by someone, respond
-               unset cnick cmsg creply
-               read cnick cmsg <<<"${mparam[1]}"
-               [[ "$cnick" =~ ^${nick}.?$ ]] &&
-               case "$cmsg" in
-                    help) creply="The commands are help, about, site, license, and source." ;;
-                 license) creply="AGPL https://www.gnu.org/licenses/agpl see also source" ;;
-                  source) creply="https://github.com/archwomen/awbot-logr" ;;
-                   about) creply="I assist the ops by logging this channel. The logs are deleted periodically and are not publicly viewable." ;;
-                    site) creply="http://redmine.archwomen.org/projects/awbot" ;;
-                    ping) creply="pony" ;;
-               esac
-               [[ -n "$creply" ]] && ircwrite "privmsg $channel :$mname: $creply" # not logging this
-               ;&
-       NOTICE) ;&
-         PART) logr "${mcmd^^} $mprefix ${mparam[1]}" ;;
-         JOIN) logr "${mcmd^^} $mprefix" ;;
-         KICK) logr "${mcmd^^} $mprefix ${mparam[1]} ${mparam[2]}" ;;
-         MODE) logr "${mcmd^^} $mprefix ${mparam[@]:1:$(( ${#mparam[@]} - 1 ))}" ;;
-    esac
-  elif $logging && [[ "${mcmd^^}" == QUIT ]]
-  then
-    logr "${mcmd^^} $mprefix ${mparam[0]}"
+    # log messages
+    if [[ "${mparam[0]}" == "$channel" ]] # channel messages
+      case "${mcmd^^}" in
+        PRIVMSG) # if being addressed by someone, respond
+                 unset cnick cmsg creply
+                 read cnick cmsg <<<"${mparam[1]}"
+                 [[ "$cnick" =~ ^${nick}.?$ ]] &&
+                 case "$cmsg" in
+                      help) creply="The commands are help, about, site, license, and source." ;;
+                   license) creply="AGPL https://www.gnu.org/licenses/agpl see also source" ;;
+                    source) creply="https://github.com/archwomen/awbot-logr" ;;
+                     about) creply="I assist the ops by logging this channel. The logs are deleted periodically and are not publicly viewable." ;;
+                      site) creply="http://redmine.archwomen.org/projects/awbot" ;;
+                      ping) creply="pony" ;;
+                 esac
+                 [[ -n "$creply" ]] && ircwrite "privmsg $channel :$mname: $creply" # not logging this
+                 ;&
+         NOTICE) ;&
+           PART) logr "${mcmd^^} $mprefix ${mparam[1]}" ;;
+           JOIN) logr "${mcmd^^} $mprefix" ;;
+           KICK) logr "${mcmd^^} $mprefix ${mparam[1]} ${mparam[2]}" ;;
+           MODE) logr "${mcmd^^} $mprefix ${mparam[@]:1:$(( ${#mparam[@]} - 1 ))}" ;;
+      esac
+    else # global messages
+      case "${mcmd^^}" in
+        QUIT) ;&
+        NICK) logr "${mcmd^^} $mprefix ${mparam[0]}" ;;
+      esac
+    fi
   fi
   # no else because other messages are ignored atm
 done <&${irc[0]}

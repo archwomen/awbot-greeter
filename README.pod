@@ -10,7 +10,7 @@ awlogr [I<config_options>]
 
 awbot-logr is a simple IRC robot which logs activity in an IRC channel to systemd-journald. It is a fork of awbot.
 
-Only one channel can be logged at a time. Messages are printed to stdout which are captured by systemd and automatically logged in journald. Only PRIVMSG, NOTICE, PART, JOIN, KICK, MODE, and QUIT messages are logged. To view the logs of #channel, run C<journalctl -au awlogr@channel>.
+Only one channel can be logged at a time. Messages are printed to stdout which are captured by systemd and automatically logged in journald. Only PRIVMSG, NOTICE, PART, JOIN, KICK, MODE, NICK and QUIT messages are logged. To view the logs of #channel, run C<journalctl -au awlogr@channel>.
 
 OpenSSL and socat are required to connect to an IRC server.
 
