@@ -222,6 +222,7 @@ do
   then
     # log messages
     if [[ "${mparam[0]}" == "$channel" ]] # channel messages
+    then
       case "${mcmd^^}" in
         PRIVMSG) # if being addressed by someone, respond
                  unset cnick cmsg creply
