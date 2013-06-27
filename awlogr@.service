@@ -5,6 +5,7 @@ After=network.target
 
 [Service]
 ExecStart=/usr/bin/awlogr channel=#%i
+Restart=always
 
 [Install]
 WantedBy=multi-user.target
