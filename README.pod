@@ -1,16 +1,14 @@
 =head1 NAME
 
-awbot-logr - Arch Linux Women IRC logging bot
+awbot-greeter - Arch Linux Women IRC welcome bot
 
 =head1 SYNOPSIS
 
-awlogr [I<config_options>]
+awgreeter [I<config_options>]
 
 =head1 DESCRIPTION
 
-awbot-logr is a simple IRC robot which logs activity in an IRC channel to systemd-journald. It is a fork of awbot.
-
-Only one channel can be logged at a time. Messages are printed to stdout which are captured by systemd and automatically logged in journald. Only PRIVMSG, NOTICE, PART, JOIN, KICK, MODE, NICK and QUIT messages are logged. To view the logs of #channel, run C<journalctl -au awlogr@channel>.
+awbot-greeter is a simple IRC robot which welcomes new people to an IRC channel. It is a fork of awbot-logr which is a fork of awbot.
 
 OpenSSL and socat are required to connect to an IRC server.
 
@@ -28,9 +26,13 @@ The address of the IRC server to connect to.
 
 The port to connect to. This must be the port used for SSL connections.
 
+=item nicks=( )
+
+An array of IRC nicks to use. If a nick is in use, the next one in the array will be tried.
+
 =item nick=
 
-An IRC nick to use. Upon connection, if the nick is already in use the bot will generate alternative by appending an integer.
+Override I<nicks> with a single nick. Used only for testing stuff.
  
 =item pass=
 
@@ -46,7 +48,23 @@ A name like a real name.
 
 =item ircuser=
 
-A user name like one used for UNIX accounts. It is optional and if not specified the value for I<nick> is used.
+A user name like one used for UNIX accounts. It is optional and if not specified the first item in I<nicks> is used.
+
+=item welcome=
+
+The welcome message to greet new people with. This is an array where each item is a separate line.
+
+The string I<%nick%> is replaced by the nick of the person being greeted.
+
+=item notify=( )
+
+An array of nicks to send a PM to notify of new people in the channel. This is optional.
+
+=item seenlist=
+
+The path to the file where a list of seen nicks is kept. This is how the bot knows if a nick is new to the channel or not.
+
+When setting up, populate this file with a list of nicks you kinow are not new.
 
 =item channel=
 
@@ -66,6 +84,6 @@ You should have received a copy of the GNU Affero General Public License along w
 
 =head1 WEBSITES
 
-http://archwomen.org
+https://archwomen.org
 
-https://github.com/archwomen/awbot-logr
+https://github.com/archwomen/awbot-greeter

@@ -1,10 +1,10 @@
-There is no configuring or building the code as awbot-logr is a single bash script.
+There is no configuring or building the code as awbot-greeter is a single bash script.
 
-To install awbot-logr do,
+To install awbot-greeter do,
 $ make [options] install
 
-There are three options,
-  PREFIX    - path to where awbot-logr is installed
+There options are,
+  PREFIX    - path to where awbot-greeter is installed
               default is /usr/local
   BINDIR    - directory under PREFIX to install the program
               default is bin
@@ -14,7 +14,7 @@ There are three options,
               default is share/man/man1
   DESTDIR   - where to put everything
               for use in packaging script
-              for example, DiESTDIR=${HOME}/build/awbot-logr
+              for example, DESTDIR=${HOME}/build/awbot-greeter
 
 pod2man is required for building the man page. It is part of most perl packages.
 

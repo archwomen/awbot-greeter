@@ -1,0 +1,11 @@
+[Unit]
+Description=Arch Women IRC bot to welcome people to #%i
+Documentation=man:awbot-greeter(1)
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/awgreeter channel=#%i
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

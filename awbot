@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# © 2012 fsckd <fsckdaemon@gmail.com>
+# © 2012-2013 fsckd <fsckdaemon@gmail.com>
 
 ## Load config file ##
 
@@ -19,7 +19,7 @@ while (( "$#" ))
 do
   # parse config options
   IFS='=' read option value <<<"$1"
-  if grep -q @"$option"@ <<<"@server@port@nick@pass@ircname@ircuser@channel@"
+  if grep -q @"$option"@ <<<"@server@port@nicks@nick@pass@ircname@ircuser@channel@welcome@notify@seenlist@"
   then
     [[ -z "$value" ]] && [[ "$option" != pass ]] && usage_error
     eval "$1" # set value
@@ -31,14 +31,28 @@ done
 
 ## Verify Config ##
 
-[[ -z "$ircuser" ]] && ircuser="$nick"
-[[ -z "$server" ]]  ||
-[[ -z "$port" ]]    ||
-[[ -z "$nick" ]]    ||
-#[[ -z "$pass" ]]    ||
-[[ -z "$ircname" ]] ||
-[[ -z "$channel" ]] &&
+[[ -n "$nick" ]]     && nicks="$nick"
+[[ -z "$ircuser" ]]  && ircuser="$nicks"
+[[ -z "$server" ]]   ||
+[[ -z "$port" ]]     ||
+[[ -z "$nicks" ]]    ||
+#[[ -z "$pass" ]]     ||
+[[ -z "$ircname" ]]  ||
+[[ -z "$welcome" ]]  ||
+#[[ -z "$notify" ]]   ||
+[[ -z "$seenlist" ]] ||
+[[ -z "$channel" ]]  &&
 { echo error: configuration is incomplete >&2 ; exit 1 ; }
+
+# do we have access to $seenlist?
+if [[ -e "$seenlist" ]]
+then
+  if ! [[ -f "$seenlist" ]] || ! [[ -r "$seenlist" ]] || ! [[ -w "$seenlist" ]]
+  then echo error: file "'$seenlist'" not accessible >&2 ; exit 1
+  fi
+else
+  touch "$seenlist" &>/dev/null || { echo error: can not create file "'$seenlist'" >&2 ; exit 1 ; }
+fi
 
 
 ## IRC Bot ##
@@ -52,9 +66,33 @@ done
 cacert=/etc/ssl/certs/ca-certificates.crt # cert file
 capath=/etc/ssl/certs # path to ca files
 
-logr() # the loggings function
+greet() # the greeter function
 {
-  echo "$@"
+  # $mname - the nick of whom we're greeting
+  # $channel - the channel to watch
+  # $welcome - the welcome message, it is an array with each element a single line
+  # $notify - array of nicks to PM if a new nick enters the channel
+  # $seenlist - file containing list of nicks seen
+
+  # don't continue if nick is known
+  grep -qs "$mname" "$seenlist" && return
+
+  # send PMs to interested parties
+  for n in "${notify[@]}"
+  do ircwrite "privmsg $n :new person $mname in $channel"
+  done
+
+  # send welcome message
+  for m in "${welcome[@]}"
+  do
+    # replace string %nick% with nick of person being greeted
+    m="`sed "s@%nick%@$mname@g" <<<"$m"`"
+    ircwrite "privmsg $channel :$m"
+    sleep 0.5s
+  done
+
+  # remmeber nick for next time
+  echo "$mname" >> "$seenlist"
 }
 
 ircwrite() # write each arg as a line to irc
@@ -163,12 +201,10 @@ ircmsgbreak() # facilitate message decomposition
   read $3 <<<"$mtail"
 }
 
-coproc irc { socat - "OPENSSL:$server:$port",capath="$capath"; } 2>/dev/null
+coproc irc { socat -T1000 - "OPENSSL:$server:$port",capath="$capath"; } 2>/dev/null
 
-initstage=true   # start in initial stage
-logging=false    # logging starts once in the channel
-nicknum=0        # number to append to nick if nick is in use
-nickbase="$nick" # base to derive alternative nicks from 
+initstage=true # start in initial stage
+nicknum=0      # which nick in nicks is current
 
 while read line
 do
@@ -183,28 +219,30 @@ do
     [[ -n "$pass" ]] && ircwrite "pass $pass"
     # from here on, ignore everything NickServ has to say
     # send nick and user commands
-    ircwrite "nick $nick" "user $ircuser * * $ircname"
+    ircwrite "nick $nicks" "user $ircuser * * $ircname"
     # leave initial stage
     initstage=false
   elif [[ $mcmd == 433 ]]
   then
     # name is in use, choose another
     nicknum=$(( nicknum + 1 ))
-    nick="$nickbase$nicknum"
+    nick="${nicks[$nicknum]}"
+    if [[ -z "$nick" ]]
+    then
+      # out of nicks
+      echo error: all nicks are in use >&2
+      ircwrite "quit"
+      exit
+    fi
     ircwrite "nick $nick"
   elif [[ $mcmd == 001 ]]
   then
     # we're free to act
     # why not join a channel? :)
     ircwrite "join $channel"
-  elif [[ $mcmd == 366 ]]
-  then
-    # assuming that if end of nick list command received,
-    # it is safe to log the channel
-    # enable logging mode
-    logging=true
-    #ircwrite "notice $channel :$message" "part $channel" "quit"
-    #break # done!
+  #elif [[ $mcmd == 366 ]]
+  #then
+    # this would be where to put commands to run on joining the channel
   elif [[ $mcmd == PING ]]
   then
     # must respond to PING
@@ -218,38 +256,26 @@ do
   then
     # CTCP VERSION request
     ircwrite "notice $mname :$(enclose01 add "VERSION Arch Linux Women IRC bot")"
-  elif $logging
+  elif [[ "${mparam[0]}" == "$channel" ]] # channel messages
   then
-    # log messages
-    if [[ "${mparam[0]}" == "$channel" ]] # channel messages
-    then
-      case "${mcmd^^}" in
-        PRIVMSG) # if being addressed by someone, respond
-                 unset cnick cmsg creply
-                 read cnick cmsg <<<"${mparam[1]}"
-                 [[ "$cnick" =~ ^${nick}.?$ ]] &&
-                 case "$cmsg" in
-                      help) creply="The commands are help, about, site, license, and source." ;;
-                   license) creply="AGPL https://www.gnu.org/licenses/agpl see also source" ;;
-                    source) creply="https://github.com/archwomen/awbot-logr" ;;
-                     about) creply="I assist the ops by logging this channel. The logs are deleted periodically and are not publicly viewable." ;;
-                      site) creply="http://redmine.archwomen.org/projects/awbot" ;;
-                      ping) creply="pony" ;;
-                 esac
-                 [[ -n "$creply" ]] && ircwrite "privmsg $channel :$mname: $creply" # not logging this
-                 ;&
-         NOTICE) ;&
-           PART) logr "${mcmd^^} $mprefix ${mparam[1]}" ;;
-           JOIN) logr "${mcmd^^} $mprefix" ;;
-           KICK) logr "${mcmd^^} $mprefix ${mparam[1]} ${mparam[2]}" ;;
-           MODE) logr "${mcmd^^} $mprefix ${mparam[@]:1:$(( ${#mparam[@]} - 1 ))}" ;;
-      esac
-    else # global messages
-      case "${mcmd^^}" in
-        QUIT) ;&
-        NICK) logr "${mcmd^^} $mprefix ${mparam[0]}" ;;
-      esac
-    fi
+    case "${mcmd^^}" in
+      PRIVMSG) # if being addressed by someone, respond
+               unset cnick cmsg creply
+               read cnick cmsg <<<"${mparam[1]}"
+               [[ "$cnick" =~ ^${nick}.?$ ]] &&
+               case "$cmsg" in
+                    help) creply="The commands are help, about, site, license, and source." ;;
+                 license) creply="AGPL https://www.gnu.org/licenses/agpl see also source" ;;
+                  source) creply="https://github.com/archwomen/awbot-greeter" ;;
+                   about) creply="Hi, I welcome people new to the channel." ;;
+                    site) creply="http://redmine.archwomen.org/projects/awbot" ;;
+                    ping) creply="pony" ;;
+               esac
+               [[ -n "$creply" ]] && ircwrite "privmsg $channel :$mname: $creply"
+               ;;
+         JOIN) sleep 2s ; greet ;; # coproc and child processes confuses me
+                                   # is fine if the channel isn't flooded
+    esac
   fi
   # no else because other messages are ignored atm
 done <&${irc[0]}

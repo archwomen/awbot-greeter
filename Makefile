@@ -4,15 +4,15 @@ BINDIR    ?= bin
 MANPREFIX ?= $(PREFIX)
 MANDIR    ?= share/man/man1
 
-awbot-logr.1: README.pod
-	pod2man --section=1 --center="awlogr manual" --name="AWBOT-LOGR" --release="awbot-logr" $^ $@
+awbot-greeter.1: README.pod
+	pod2man --section=1 --center="awgreeter manual" --name="AWBOT-GREETER" --release="awbot-greeter" $^ $@
 
-install: awbot awbot-logr.1 awlogr@.service
-	install -D -m755 awbot $(DESTDIR)$(PREFIX)/$(BINDIR)/awlogr
-	install -D -m644 awbot-logr.1 $(DESTDIR)$(MANPREFIX)/$(MANDIR)/awbot-logr.1
-	ln -s awbot-logr.1 $(DESTDIR)$(MANPREFIX)/$(MANDIR)/awlogr.1
-	install -D -m644 awlogr@.service $(DESTDIR)$(PREFIX)/lib/systemd/system/awlogr@.service
+install: awbot awbot-greeter.1 awgreeter@.service
+	install -D -m755 awbot $(DESTDIR)$(PREFIX)/$(BINDIR)/awgreeter
+	install -D -m644 awbot-greeter.1 $(DESTDIR)$(MANPREFIX)/$(MANDIR)/awbot-greeter.1
+	ln -s awbot-greeter.1 $(DESTDIR)$(MANPREFIX)/$(MANDIR)/awgreeter.1
+	install -D -m644 awgreeter@.service $(DESTDIR)$(PREFIX)/lib/systemd/system/awgreeter@.service
 
 uninstall:
-	$(RM) $(DESTDIR)$(PREFIX)/bin/awlogr $(DESTDIR)$(MANPREFIX)/man1/awbot-logr.1
+	$(RM) $(DESTDIR)$(PREFIX)/bin/awgreeter $(DESTDIR)$(MANPREFIX)/man1/awbot-greeter.1
 
